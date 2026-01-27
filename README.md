@@ -124,5 +124,3 @@ mix new apps/orquestra_x_worker --sup
 -   **Resetar Banco**: `mix ecto.reset`
 
 ---
-
-Desenvolvido como demonstração de competência em Sistemas Distribuídos e Elixir.
