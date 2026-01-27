@@ -64,9 +64,8 @@ defmodule OrquestraX.Engine.WorkflowServer do
         {:noreply, %{state | instance: updated_instance}}
       else
         # Empty workflow, finish immediately
-        finish_workflow(updated_instance, socket: nil) # No socket arg here, logic refactor needed? No, just helper.
-         # Actually finish_workflow helper below
-         {:noreply, state} # Placeholder, fix below
+        {:ok, updated_instance} = finish_workflow(updated_instance, %{}) # %{} as initial result
+         {:noreply, %{state | instance: updated_instance}}
       end
 
     else
@@ -98,12 +97,15 @@ defmodule OrquestraX.Engine.WorkflowServer do
        next_step = Enum.at(steps, next_index)
        Logger.info("Dispatching next step [#{next_index}]: #{next_step["id"]}")
 
+       # Merge result into context (Accumulate data)
+       new_context = Map.merge(instance.context, result)
+
        {:ok, updated_instance} =
          instance
-         |> Ecto.Changeset.change(current_step_index: next_index)
+         |> Ecto.Changeset.change(current_step_index: next_index, context: new_context)
          |> Repo.update()
 
-       OrquestraX.Dispatcher.dispatch(self(), next_step, instance.context)
+       OrquestraX.Dispatcher.dispatch(self(), next_step, updated_instance.context)
 
        {:noreply, %{state | instance: updated_instance}}
     else

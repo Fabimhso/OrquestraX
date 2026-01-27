@@ -13,7 +13,15 @@ defmodule OrquestraXWorker.JobRunner do
     # Simulate work
     Process.sleep(1000)
 
-    result = %{"status" => "success", "step_id" => step["id"], "worker" => inspect(Node.self())}
+    # Generate mock result based on step type
+    step_result = case step["type"] do
+      "data_ingestion" -> %{"rows_read" => Enum.random(100..5000), "source" => "csv"}
+      "processing" -> %{"clusters_found" => Enum.random(2..10), "accuracy" => 0.95}
+      "archiving" -> %{"archive_path" => "s3://bucket/archive_#{System.unique_integer()}.zip"}
+      _ -> %{"generic_result" => "ok"}
+    end
+
+    result = %{"status" => "success", "step_id" => step["id"], "worker" => inspect(Node.self())} |> Map.merge(step_result)
 
     # Report back to Orchestrator (Core)
     GenServer.cast(orchestrator_pid, {:step_completed, result})

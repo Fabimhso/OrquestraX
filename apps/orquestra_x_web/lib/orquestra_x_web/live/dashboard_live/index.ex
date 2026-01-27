@@ -28,7 +28,13 @@ defmodule OrquestraXWeb.DashboardLive.Index do
 
     {:ok, def} = Workflows.create_definition(definition_attrs)
 
-    {:ok, instance} = Workflows.create_instance(def.id, %{"some" => "data"})
+    initial_context = %{
+      "user_id" => "u_#{System.unique_integer([:positive])}",
+      "file_path" => "/tmp/uploads/file_123.csv",
+      "priority" => "high"
+    }
+
+    {:ok, instance} = Workflows.create_instance(def.id, initial_context)
 
     # Start it immediately
     OrquestraX.Engine.WorkflowServer.start_link(instance.id)
