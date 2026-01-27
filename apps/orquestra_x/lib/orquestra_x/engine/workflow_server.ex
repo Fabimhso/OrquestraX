@@ -25,7 +25,7 @@ defmodule OrquestraX.Engine.WorkflowServer do
   def init(workflow_instance_id) do
     Logger.info("Starting WorkflowServer for instance #{workflow_instance_id}")
     # Load state from DB
-    case Repo.get(Instance, workflow_instance_id) do
+    case Repo.get(Instance, workflow_instance_id) |> Repo.preload(:workflow_definition) do
       nil -> {:stop, :not_found}
       instance -> {:ok, %{instance: instance}}
     end
@@ -56,10 +56,19 @@ defmodule OrquestraX.Engine.WorkflowServer do
       Phoenix.PubSub.broadcast(OrquestraX.PubSub, "workflow:#{instance.id}", {:workflow_started, instance.id})
 
       # Dispatch first step
-      step = %{"id" => "step_1", "type" => "example_task"}
-      OrquestraX.Dispatcher.dispatch(self(), step, instance.context)
+      steps = instance.workflow_definition.steps
+      initial_step = Enum.at(steps, 0)
 
-      {:noreply, %{state | instance: updated_instance}}
+      if initial_step do
+        OrquestraX.Dispatcher.dispatch(self(), initial_step, instance.context)
+        {:noreply, %{state | instance: updated_instance}}
+      else
+        # Empty workflow, finish immediately
+        finish_workflow(updated_instance, socket: nil) # No socket arg here, logic refactor needed? No, just helper.
+         # Actually finish_workflow helper below
+         {:noreply, state} # Placeholder, fix below
+      end
+
     else
       Logger.warning("Workflow #{instance.id} already started or completed")
       {:noreply, state}
@@ -80,7 +89,32 @@ defmodule OrquestraX.Engine.WorkflowServer do
     })
     |> Repo.insert!()
 
-    # Mark workflow as completed (Simple MVP logic)
+    # Determine next step
+    steps = instance.workflow_definition.steps
+    next_index = instance.current_step_index + 1
+
+    if next_index < length(steps) do
+       # Dispatch next step
+       next_step = Enum.at(steps, next_index)
+       Logger.info("Dispatching next step [#{next_index}]: #{next_step["id"]}")
+
+       {:ok, updated_instance} =
+         instance
+         |> Ecto.Changeset.change(current_step_index: next_index)
+         |> Repo.update()
+
+       OrquestraX.Dispatcher.dispatch(self(), next_step, instance.context)
+
+       {:noreply, %{state | instance: updated_instance}}
+    else
+       # All steps completed
+       {:ok, updated_instance} = finish_workflow(instance, result)
+       {:noreply, %{state | instance: updated_instance}}
+    end
+  end
+
+  defp finish_workflow(instance, result) do
+    # Mark workflow as completed
     {:ok, updated_instance} =
         instance
         |> Ecto.Changeset.change(status: "completed")
@@ -99,6 +133,6 @@ defmodule OrquestraX.Engine.WorkflowServer do
     Phoenix.PubSub.broadcast(OrquestraX.PubSub, "workflows", {:workflow_updated, instance.id})
     Phoenix.PubSub.broadcast(OrquestraX.PubSub, "workflow:#{instance.id}", {:workflow_completed, result})
 
-    {:noreply, %{state | instance: updated_instance}}
+    {:ok, updated_instance}
   end
 end

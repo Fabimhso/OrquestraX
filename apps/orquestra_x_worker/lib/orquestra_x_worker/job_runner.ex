@@ -11,7 +11,7 @@ defmodule OrquestraXWorker.JobRunner do
     Logger.info("Executing step #{step["id"]} on #{inspect(Node.self())}")
 
     # Simulate work
-    Process.sleep(2000)
+    Process.sleep(1000)
 
     result = %{"status" => "success", "step_id" => step["id"], "worker" => inspect(Node.self())}
 

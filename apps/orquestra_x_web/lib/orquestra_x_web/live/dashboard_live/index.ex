@@ -14,10 +14,19 @@ defmodule OrquestraXWeb.DashboardLive.Index do
   @impl true
   def handle_event("create_test_workflow", _params, socket) do
     # Create a dummy definition if not exists
-    {:ok, def} = case Workflows.list_definitions() do
-      [] -> Workflows.create_definition(%{name: "Test Workflow", steps: [%{"id" => "step_1", "type" => "test"}], version: 1})
-      [h | _] -> {:ok, h}
-    end
+    # We always create a new one to ensure it has multiple steps for this test
+    # Or we can update the existing logic to check for a specific name
+    definition_attrs = %{
+      name: "Complex Workflow #{System.unique_integer()}",
+      steps: [
+        %{"id" => "step_1", "type" => "data_ingestion"},
+        %{"id" => "step_2", "type" => "processing"},
+        %{"id" => "step_3", "type" => "archiving"}
+      ],
+      version: 1
+    }
+
+    {:ok, def} = Workflows.create_definition(definition_attrs)
 
     {:ok, instance} = Workflows.create_instance(def.id, %{"some" => "data"})
 
