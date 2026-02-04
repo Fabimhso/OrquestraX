@@ -100,22 +100,22 @@ mix new apps/orquestra_x_worker --sup
 ### Steps
 
 1. **Install dependencies**:
-```bash
-mix deps.get
-```
+   ```bash
+   mix deps.get
+   ```
 
 2. **Start the server** (Orchestrator + Dashboard + Worker):
-```bash
-iex -S mix phx.server
-```
-*We run inside `iex` to be able to interact with the runtime if needed.*
+   ```bash
+   iex -S mix phx.server
+   ```
+   *We run inside `iex` to be able to interact with the runtime if needed.*
 
 3. **Access**:
-Open your browser at [http://localhost:4000](http://localhost:4000).
+   Open your browser at [http://localhost:4000](http://localhost:4000).
 
 4. **Test**:
-- Click **"New Test Workflow"**.
-- Watch the magic happen in real time! 🚀
+   - Click **"New Test Workflow"**.
+   - Watch the magic happen in real time! 🚀
 
 ## 🧪 Useful Commands
 
