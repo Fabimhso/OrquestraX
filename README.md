@@ -1,126 +1,126 @@
 # OrquestraX
 
-Plataforma Distribuída de Orquestração de Workflows Empresariais desenvolvida em Elixir.
+Distributed platform for orchestration of enterprise workflows developed in Elixir.
 
-Este projeto demonstra a criação de um sistema resiliente, distribuído e tolerante a falhas utilizando as capacidades da BEAM (Erlang VM), Ecto para persistência e Phoenix LiveView para monitoramento em tempo real.
+This project demonstrates the creation of a resilient, distributed, and fault-tolerant system using the capabilities of the BEAM (Erlang VM), Ecto for persistence, and Phoenix LiveView for monitoring and interaction.
 
-## 🚀 Tecnologias Utilizadas
+## 🚀 Technologies Used
 
-- **Elixir 1.16** / **Erlang OTP 26**: Linguagem e runtime para concorrência e distribuição.
-- **Phoenix Framework 1.8**: Framework web.
-- **Phoenix LiveView**: Atualizações em tempo real (WebSockets) via PubSub.
-- **PostgreSQL**: Banco de dados relacional para persistência de estado e eventos.
+- **Elixir 1.16** / **Erlang OTP 26**: Language and runtime for concurrency and distribution.
+- **Phoenix Framework 1.8**: Web framework.
+- **Phoenix LiveView**: Real-time updates (WebSockets) via PubSub.
+- **PostgreSQL**: Relational database for state and event persistence.
 - **Ecto**: ORM/Query Builder.
-- **libcluster**: Biblioteca para descoberta automática de nós em cluster (Gossip Strategy).
-- **Mise**: Gerenciador de versões (substituto moderno do asdf).
+- **libcluster**: Library for automatic node discovery in the cluster (Gossip Strategy).
+- **Mise**: Version manager (modern replacement for asdf).
 
-## 🏗️ Arquitetura do Sistema
+## 🏗️ System Architecture
 
-O projeto foi criado como uma aplicação **Umbrella**, dividida em três aplicações principais:
+The project was created as an **Umbrella** application, split into three main applications:
 
-1.  **`orquestra_x` (Core)**:
-    -   Contém as regras de negócio, Schemas do Ecto e a lógica de orquestração.
-    -   Gerencia o ciclo de vida dos workflows via `GenServer` (`WorkflowServer`).
-    -   Persiste eventos de auditoria (`WorkflowEvent`).
-    -   Possui o `Dispatcher`, responsável por enviar tarefas para execução em nós remotos.
+1. **`orquestra_x` (Core)**:
+   - Contains business rules, Ecto Schemas, and orchestration logic.
+   - Manages the lifecycle of workflows via a `GenServer` (`WorkflowServer`).
+   - Persists audit events (`WorkflowEvent`).
+   - Includes the `Dispatcher`, responsible for sending tasks for execution to remote nodes.
 
-2.  **`orquestra_x_web` (Interface)**:
-    -   Aplicação Phoenix responsável pelo Dashboard.
-    -   Utiliza LiveView para exibir o estado dos workflows em tempo real.
-    -   Se inscreve no `Phoenix.PubSub` para receber atualizações do Core sem necessidade de polling.
+2. **`orquestra_x_web` (Interface)**:
+   - Phoenix application responsible for the Dashboard.
+   - Uses LiveView to display workflow states in real time.
+   - Subscribes to `Phoenix.PubSub` to receive Core updates without polling.
 
-3.  **`orquestra_x_worker` (Execução)**:
-    -   Simula um nó de execução (Worker).
-    -   Recebe comandos via RPC (`:rpc.cast` / `Task`).
-    -   Executa o trabalho (simulado com `Process.sleep`) e reporta o resultado de volta ao Orchestrator.
+3. **`orquestra_x_worker` (Execution)**:
+   - Simulates an execution node (Worker).
+   - Receives commands via RPC (`:rpc.cast` / `Task`).
+   - Executes the job (simulated with `Process.sleep`) and reports the result back to the Orchestrator.
 
-### Fluxo de Funcionamento
+### Workflow Flow
 
-1.  **Criação**: Um usuário cria um workflow via Dashboard (ou API). O registro é salvo no banco com status `pending`.
-2.  **Inicialização**: O `WorkflowServer` é iniciado para aquele ID específico.
-3.  **Execução**:
-    -   O servidor muda o status para `running` e despacha o primeiro passo usando o módulo `Dispatcher`.
-    -   O `Dispatcher` escolhe um nó disponível no cluster (`libcluster`) e executa a tarefa assincronamente no `orquestra_x_worker`.
-4.  **Distribuição**: O Worker recebe a tarefa, executa, e envia uma mensagem (`:step_completed`) de volta para o PID do Orquestrador.
-5.  **Conclusão**: O Orquestrador recebe a mensagem, grava o evento no banco, atualiza o status para `completed` e notifica o Dashboard via PubSub.
-6.  **Visualização**: O Dashboard recebe a notificação e atualiza a tela instantaneamente para o usuário.
+1. **Creation**: A user creates a workflow via the Dashboard (or API). The record is saved in the database with status `pending`.
+2. **Initialization**: The `WorkflowServer` is started for that specific ID.
+3. **Execution**:
+   - The server changes the status to `running` and dispatches the first step using the `Dispatcher` module.
+   - The `Dispatcher` chooses an available node in the cluster (`libcluster`) and executes the task asynchronously on the `orquestra_x_worker`.
+4. **Distribution**: The Worker receives the task, performs it, and sends a message (`:step_completed`) back to the Orchestrator's PID.
+5. **Completion**: The Orchestrator receives the message, writes the event to the database, updates the status to `completed`, and notifies the Dashboard via PubSub.
+6. **Visualization**: The Dashboard receives the notification and updates the UI instantly for the user.
 
 ---
 
-## 🛠️ Como o Projeto foi Criado (Passo a Passo)
+## 🛠️ How the Project Was Created (Step-by-Step)
 
-### 1. Configuração do Ambiente
-Como o ambiente não possuía **Elixir** instalado, utilizamos o **Mise** para instalar as versões exatas necessárias:
+### 1. Environment Setup
+Because the environment didn't have **Elixir** installed, we used **Mise** to install the exact required versions:
 ```bash
 curl https://mise.run | sh
 mise install erlang@26.2.1
 mise install elixir@1.16.0-otp-26
 ```
-Também instalamos dependências do sistema (`libncurses-dev`, `build-essential`) necessárias para compilar o Erlang.
+We also installed system dependencies (`libncurses-dev`, `build-essential`) required to compile Erlang.
 
-### 2. Inicialização do Projeto
-Criamos um projeto Umbrella sem dependências instaladas inicialmente:
+### 2. Project Initialization
+We created an Umbrella project without installing dependencies initially:
 ```bash
 mix phx.new . --app orquestra_x --umbrella --no-install
 ```
 
-### 3. Configuração do Banco de Dados
-Configuramos a conexão com o PostgreSQL local no `config/dev.exs` e criamos o banco:
+### 3. Database Configuration
+Configured the connection to the local PostgreSQL in `config/dev.exs` and created the database:
 ```bash
 mix ecto.create
 ```
 
-### 4. Implementação do Core (`apps/orquestra_x`)
--   Adicionamos dependência `libcluster`.
--   Criamos as tabelas do banco: `workflows_definitions`, `workflows_instances` e `workflows_events`.
--   Implementamos o `WorkflowServer` (GenServer) para gerenciar o estado em memória.
--   Implementamos o `Dispatcher` para distribuir tarefas via RPC.
+### 4. Core Implementation (`apps/orquestra_x`)
+- Added the `libcluster` dependency.
+- Created database tables: `workflows_definitions`, `workflows_instances`, and `workflows_events`.
+- Implemented the `WorkflowServer` (GenServer) to manage in-memory state.
+- Implemented the `Dispatcher` to distribute tasks via RPC.
 
-### 5. Criação do App Worker (`apps/orquestra_x_worker`)
-Geramos uma nova app dentro da umbrella:
+### 5. Worker App Creation (`apps/orquestra_x_worker`)
+Generated a new app inside the umbrella:
 ```bash
 mix new apps/orquestra_x_worker --sup
 ```
--   Configuramos para conectar ao mesmo cluster.
--   Criamos o módulo `JobRunner` para receber e processar tarefas.
+- Configured it to connect to the same cluster.
+- Created the `JobRunner` module to receive and process tasks.
 
-### 6. Interface Gráfica (`apps/orquestra_x_web`)
--   Criamos o Dashboard principal (`DashboardLive`).
--   Criamos a página de Detalhes (`WorkflowLive.Show`).
--   Estilizamos com TailwindCSS (padrão do Phoenix).
+### 6. Graphical Interface (`apps/orquestra_x_web`)
+- Created the main Dashboard (`DashboardLive`).
+- Created the Details page (`WorkflowLive.Show`).
+- Styled with TailwindCSS (Phoenix default).
 
 ---
 
-## ▶️ Como Executar
+## ▶️ How to Run
 
-### Pré-requisitos
--   PostgreSQL rodando (porta 5432).
--   Elixir e Erlang instalados.
+### Prerequisites
+- PostgreSQL running (port 5432).
+- Elixir and Erlang installed.
 
-### Passos
+### Steps
 
-1.  **Instalar dependências**:
-    ```bash
-    mix deps.get
-    ```
+1. **Install dependencies**:
+   ```bash
+   mix deps.get
+   ```
 
-2.  **Iniciar o servidor** (Orquestrador + Dashboard + Worker):
-    ```bash
-    iex -S mix phx.server
-    ```
-    *Rodamos dentro do `iex` para poder interagir com o terminal se necessário.*
+2. **Start the server** (Orchestrator + Dashboard + Worker):
+   ```bash
+   iex -S mix phx.server
+   ```
+   *We run inside `iex` to be able to interact with the runtime if needed.*
 
-3.  **Acessar**:
-    Abra seu navegador em [http://localhost:4000](http://localhost:4000).
+3. **Access**:
+   Open your browser at [http://localhost:4000](http://localhost:4000).
 
-4.  **Testar**:
-    -   Clique em **"New Test Workflow"**.
-    -   Observe a mágica acontecer em tempo real! 🚀
+4. **Test**:
+   - Click **"New Test Workflow"**.
+   - Watch the magic happen in real time! 🚀
 
-## 🧪 Comandos Úteis
+## 🧪 Useful Commands
 
--   **Rodar Testes**: `mix test`
--   **Formatar Código**: `mix format`
--   **Resetar Banco**: `mix ecto.reset`
+- **Run Tests**: `mix test`
+- **Format Code**: `mix format`
+- **Reset Database**: `mix ecto.reset`
 
 ---
